@@ -1,69 +1,66 @@
-/* 
-* make an app that shows star chart using astronomyapi api, with a feature "my lucky constellation"
-? how do i fetch an API
-? how do i know where to find the syntax
-? where do i store the API response?
-TODO: make the API return simple data first before trying something big
-! testing extension lol
-*/
+import { useState } from "react";
 
-import { useEffect, useState } from "react";
+export function StarWithFact() {
+  const [constellation, setConstellation] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [fact, setFact] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-export function APIFunction() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const appId = import.meta.env.VITE_API_ID;
-        const appSecret = import.meta.env.VITE_API_SECRET;
-        const auth = btoa(`${appId}:${appSecret}`);
-
-        const response = await fetch("http://localhost:3000/star-chart", {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${auth}`,
-            "Content-Type": "application/json",
+  const handleClick = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      // Fetch star chart
+      const chartResponse = await fetch("http://localhost:3000/star-chart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          observer: {
+            latitude: 33.775867,
+            longitude: -84.39733,
+            date: "2025-10-01"
           },
-          body: JSON.stringify({
-            observer: {
-              latitude: 33.775867,
-              longitude: -84.39733,
-              date: "2025-10-01",
-            },
-            style: "navy",
-            view: {
-              type: "constellation",
-              parameters: {
-                constellation: "ori",
-              },
-            },
-          }),
-        });
+          style: "navy",
+          view: { type: "constellation", parameters: { constellation } }
+        }),
+      });
+      const chartData = await chartResponse.json();
+      setImageUrl(chartData.data.imageUrl);
 
-        const result = await response.json();
-        setData(result);
-      } catch (err: any) {
-        setError(err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      // Fetch AI fact
+      const factResponse = await fetch("http://localhost:3000/constellation-fact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ constellation })
+      });
+      const factData = await factResponse.json();
+      setFact(factData.fact);
 
-    fetchData();
-  }, []);
+    } catch (err: any) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
 
   return (
     <div>
+      <input
+        value={constellation}
+        onChange={(e) => setConstellation(e.target.value)}
+        placeholder="Enter 3-letter constellation id"
+      />
+      <button onClick={handleClick}>Show My Constellation</button>
+
       {loading && <p>Loading...</p>}
-      {error && <p>Error: {error.message}</p>}
-      {data?.data?.imageUrl && (
-        <img src={data.data.imageUrl} alt="Star Chart" />
-      )}     
+      {error && <p style={{ color: "red" }}>Error: {error}</p>}
+
+      {imageUrl && <img src={imageUrl} alt="Star Chart" />}
+      {fact && <p><strong>Fun fact:</strong> {fact}</p>}
     </div>
   );
 }
 
-export default APIFunction;
+export default StarWithFact;
